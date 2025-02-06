@@ -143,49 +143,71 @@ const StudentPaymentSystem = () => {
         return `${day}.${month}.${year}`;
     };
 
-    const handleDownloadPDF = async () => {
-        if (!invoiceRef.current || isDownloading) return;
-    
-        try {
-            setIsDownloading(true);
-    
+  const handleDownloadPDF = async () => {
+    if (!invoiceRef.current || isDownloading) return;
 
-            // Hide download button temporarily
-            const downloadButton = invoiceRef.current.querySelector('.invoice-actions');
-            if (downloadButton) {
-                downloadButton.style.display = 'none';
-            }
+    try {
+        setIsDownloading(true);
 
-    
-            // Capture the PDF - use html2canvas to get the DOM and then create the PDF
-            const element = invoiceRef.current;
-            const canvas = await html2canvas(element, {
-              scale: 4,
-               backgroundColor: '#fff',
-            });
-            
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const width = pdf.internal.pageSize.getWidth();
-            const height = pdf.internal.pageSize.getHeight();
-            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-
-            // Create filename with student name and date
-            const currentDate = formatDate(invoiceData.date);
-            const safeStudentName = invoiceData.studentName.replace(/[^a-zA-Z0-9]/g, '_'); // Replace special characters
-            const fileName = `${safeStudentName}_payment_receipt_${currentDate}.pdf`;
-    
-            pdf.save(fileName);
-    
-
-            // Show download button again
-            if (downloadButton) {
-                downloadButton.style.display = 'flex';
-            }
-        } finally {
-            setIsDownloading(false);
+        // Hide download button temporarily
+        const downloadButton = invoiceRef.current.querySelector('.invoice-actions');
+        if (downloadButton) {
+            downloadButton.style.display = 'none';
         }
-    };
+
+        // Get the element's dimensions
+        const element = invoiceRef.current;
+        const elementWidth = element.offsetWidth;
+        const elementHeight = element.offsetHeight;
+
+        // Create canvas with proper aspect ratio
+        const canvas = await html2canvas(element, {
+            scale: 2, // Reduced scale for better quality without excessive size
+            backgroundColor: '#fff',
+            logging: false,
+            windowWidth: elementWidth,
+            windowHeight: elementHeight
+        });
+
+        // Create PDF with proper dimensions
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (elementHeight * imgWidth) / elementWidth;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Calculate positioning to center the content
+        const xPosition = 0;
+        const yPosition = (pageHeight - imgHeight) / 2;
+
+        // Add image to PDF with calculated dimensions
+        pdf.addImage(
+            canvas.toDataURL('image/png'),
+            'PNG',
+            xPosition,
+            yPosition > 0 ? yPosition : 0, // Prevent negative positioning
+            imgWidth,
+            imgHeight
+        );
+
+        // Create filename with student name and date
+        const currentDate = formatDate(invoiceData.date);
+        const safeStudentName = invoiceData.studentName.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${safeStudentName}_payment_receipt_${currentDate}.pdf`;
+
+        pdf.save(fileName);
+
+        // Show download button again
+        if (downloadButton) {
+            downloadButton.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        // You might want to show an error message to the user here
+    } finally {
+        setIsDownloading(false);
+    }
+};
 
     const handleLogout = () => {
         navigate('/login'); // Navigate to login page
